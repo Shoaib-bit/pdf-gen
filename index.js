@@ -2,16 +2,17 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const app = express();
 const fs = require('fs');
-const pdf = require('html-pdf');
+const puppeteer = require('puppeteer');
 const jsonData = require('./data.json');
-const outputPath = 'output.pdf';
-const cors = require('cors')
-const nodemailer = require("nodemailer");
+const cors = require('cors');
+const nodemailer = require('nodemailer');
+const outputPath = "document.pdf"
 let base64Images = {
     img1: '',
     img2: '',
     img3: ''
 };
+
 let data1 = {
 
 };
@@ -68,6 +69,14 @@ const transport = nodemailer.createTransport({
 })
   
   // async..await is not allowed in global scope, must use a wrapper
+
+  async function generatePDF(htmlContent, outputPath) {
+    const browser = await puppeteer.launch();
+    const page = await browser.newPage();
+    await page.setContent(htmlContent);
+    await page.pdf({ path: outputPath, format: 'A4' });
+    await browser.close();
+}
 
 app.get('/save', async (req, res) => {
     htmlContent = `<!DOCTYPE html>
@@ -596,53 +605,59 @@ app.get('/save', async (req, res) => {
     
     
     `
-    pdf.create(htmlContent).toFile(outputPath, (err, _) => {
-        if (err) {
-            console.error('Error generating PDF:', err);
-            res.status(500).send("Error generating PDF");
-        } else {
-            console.log(`PDF saved to ${outputPath}`);
-            
-            // Send email with the PDF attachment
-            const mailOptions = {
-                from: 'Authentication<shoaibkhankhan0345@gmail.com>',
-                to: "shoaib.khan@codegenio.com",
-                subject: 'PDF Attachment',
-                text: 'Please find the attached PDF file.',
-                attachments: [
-                    {
-                        filename: 'generated.pdf',
-                        path: outputPath
-                    },
-                    {
-                        filename: 'Image 1',
-                        path : base64Images.img1
-                    },
-                    {
-                        filename: 'Image 2',
-                        path : base64Images.img2
-                    },
-                    {
-                        filename: 'Image 3',
-                        path : base64Images.img3
-                    },
-                    
-                   
-                ]
-            };
-            
-            transport.sendMail(mailOptions, (error, info) => {
-                if (error) {
-                    console.error('Error sending email:', error);
-                    res.status(500).send("Error sending email");
-                } else {
-                    console.log('Email sent successfully');
-                    res.send('Email sent successfully');
+
+    try {
+        await generatePDF(htmlContent, outputPath);
+
+        // Send email with the PDF attachment
+        const transport = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: 'shoaibkhankhan0345@gmail.com',
+                pass: 'jvhr illd vlcv bzna'
+            }
+        });
+
+        const mailOptions = {
+            from: 'Authentication<shoaibkhankhan0345@gmail.com>',
+            to: 'shoaib.khan@codegenio.com',
+            subject: 'PDF Attachment',
+            text: 'Please find the attached PDF file.',
+            attachments: [
+                {
+                    filename: 'generated.pdf',
+                    path: outputPath
+                },
+                {
+                    filename: 'Image 1',
+                    path: base64Images.img1
+                },
+                {
+                    filename: 'Image 2',
+                    path: base64Images.img2
+                },
+                {
+                    filename: 'Image 3',
+                    path: base64Images.img3
                 }
-            });
-        }
-    });
+            ]
+        };
+
+        transport.sendMail(mailOptions, (error, info) => {
+            if (error) {
+                console.error('Error sending email:', error);
+                res.status(500).send("Error sending email");
+            } else {
+                console.log('Email sent successfully');
+                res.send('Email sent successfully');
+            }
+        });
+    } catch (error) {
+        console.error('Error generating PDF:', error);
+        res.status(500).send("Error generating PDF");
+    }
 });
+
 
 
 app.post('/submitForm3', async (req, res) => {
@@ -656,19 +671,10 @@ app.post('/submitForm3', async (req, res) => {
 });
 
 
+
 const port = process.env.PORT || 3000;
 
 // Listen on `port` and 0.0.0.0
 app.listen(port, "0.0.0.0", function () {
   console.log(`Server is running on port ${port}`);
 });
-
-// async function main() {
-//     const info = await transport.sendMail({
-//       from: 'Authentication<shoaibkhankhan0345@gmail.com>', // sender address
-//       to: "shoaib.khan@codegenio.com", // list of receivers
-//       subject: "Hello ✔", // Subject line
-//       text: "Hello world?", // plain text body
-//       html: "<b>Hello world?</b>", // html body
-//     });
-// }
